@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 # typing
 from typing import List
+from fastapi.responses import RedirectResponse
 
 # Use imports absolutos para funcionar independentemente do CWD/start command.
 from backend import models, schemas, crud
@@ -166,5 +167,9 @@ def read_pedido(pedido_id: int, db: Session = Depends(get_db)):
     if db_pedido is None:
         raise HTTPException(status_code=404, detail="Pedido not found")
     return db_pedido
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 
 
