@@ -9,11 +9,9 @@ from sqlalchemy.orm import Session
 # typing
 from typing import List
 
-# Imports relativos dentro do pacote `backend` — funciona quando o
-# Root Directory do Render está definido como `backend` e o Start
-# Command é `uvicorn main:app`.
-from . import models, schemas, crud
-from .database import engine, get_db
+# Use imports absolutos para funcionar independentemente do CWD/start command.
+from backend import models, schemas, crud
+from backend.database import engine, get_db
 # Importa os modelos para garantir que eles sejam registrados com o SQLAlchemy
 
 # Cria as tabelas no DB se elas não existirem (incluindo Pedido e PedidoItem)

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from . import models, schemas
+from backend import models, schemas
 from typing import List
 
 # --- Funções CRUD de Produto (existentes) ---
