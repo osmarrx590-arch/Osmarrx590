@@ -10,6 +10,7 @@ from typing import List
 
 from backend import models, schemas, crud
 from backend.database import engine, get_db
+# Importa os modelos para garantir que eles sejam registrados com o SQLAlchemy
 
 # Cria as tabelas no DB se elas não existirem (incluindo Pedido e PedidoItem)
 models.Base.metadata.create_all(bind=engine)
