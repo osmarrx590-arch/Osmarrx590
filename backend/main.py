@@ -168,8 +168,10 @@ def read_pedido(pedido_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Pedido not found")
     return db_pedido
 
-@app.get("/", include_in_schema=False)
+from fastapi import Response
+
+@app.get("/", response_model=dict, status_code=200)
 def root():
-    return RedirectResponse(url="/docs")
+    return {"status": "ok", "service": "choperia-api-backend"}
 
 
