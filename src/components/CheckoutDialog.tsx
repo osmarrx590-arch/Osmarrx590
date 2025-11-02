@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { fetchApi } from "@/lib/api";
 import { CartItem } from "@/pages/Index";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, CheckCircle2, AlertCircle, Home } from "lucide-react";
@@ -117,11 +118,8 @@ const CheckoutDialog = ({
       // Enviar pedido ao backend antes de criar a preferência no Mercado Pago
       let pedidoResponseJson: { id?: number } | null = null;
       try {
-        const pedidoRes = await fetch("http://127.0.0.1:8000/pedidos/", {
+        const pedidoRes = await fetchApi("/pedidos/", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
           body: JSON.stringify({ items: pedidoPayloadItems })
         });
 
@@ -186,9 +184,8 @@ const CheckoutDialog = ({
       // Em vez de chamar o Mercado Pago diretamente do frontend (expor token),
       // chamamos o endpoint do backend que faz a requisição ao Mercado Pago usando credenciais seguras.
       try {
-        const backendRes = await fetch("http://127.0.0.1:8000/mp/create_preference/", {
+        const backendRes = await fetchApi("/mp/create_preference/", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(preferenceData)
         });
 

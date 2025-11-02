@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Beer, UtensilsCrossed } from "lucide-react";
+import { fetchApi } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import ProdutoCard from "@/components/ProdutoCard";
 import CartSheet from "@/components/CartSheet";
@@ -87,8 +88,8 @@ const Index = () => {
     const fetchProdutos = async () => {
       setLoading(true);
       try {
-      // Ajuste a URL conforme necessário (backend em PT: /produtos/)
-      const response = await fetch("http://127.0.0.1:8000/produtos/", { signal });
+      // Usa a URL da API configurada em src/lib/api.ts
+      const response = await fetchApi("/produtos/", { signal });
         if (!response.ok) {
           throw new Error(`Falha ao buscar produtos (status ${response.status})`);
         }
