@@ -1,28 +1,28 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { Product } from "@/pages/Index";
+import { Produto } from "@/pages/Index";
 
-interface ProductCardProps {
-  product: Product;
-  onAddToCart: (product: Product) => void;
+interface ProdutoCardProps {
+  produto: Produto;
+  onAddToCart: (produto: Produto) => void;
 }
 
-const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
+const ProdutoCard = ({ produto, onAddToCart }: ProdutoCardProps) => {
   return (
     <Card className="overflow-hidden group hover:shadow-xl transition-all duration-300 border-2 hover:border-primary">
       <div className="aspect-square bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center text-8xl">
-        {product.image}
+        {produto.image}
       </div>
       <div className="p-5">
-        <h4 className="font-bold text-lg mb-2 text-foreground">{product.name}</h4>
-        <p className="text-sm text-muted-foreground mb-4">{product.description}</p>
+        <h4 className="font-bold text-lg mb-2 text-foreground">{produto.name}</h4>
+        <p className="text-sm text-muted-foreground mb-4">{produto.description}</p>
         <div className="flex items-center justify-between">
           <span className="text-2xl font-bold text-primary">
-            R$ {product.price.toFixed(2)}
+            R$ {produto.price.toFixed(2)}
           </span>
           <Button 
-            onClick={() => onAddToCart(product)}
+            onClick={() => onAddToCart(produto)}
             className="bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all"
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -34,4 +34,4 @@ const ProductCard = ({ product, onAddToCart }: ProductCardProps) => {
   );
 };
 
-export default ProductCard;
+export default ProdutoCard;

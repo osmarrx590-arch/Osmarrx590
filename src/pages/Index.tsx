@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Beer, UtensilsCrossed } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import ProductCard from "@/components/ProductCard";
+import ProdutoCard from "@/components/ProdutoCard";
 import CartSheet from "@/components/CartSheet";
 import CheckoutDialog from "@/components/CheckoutDialog";
 
-export type Product = {
+export type Produto = {
   id: string;
   name: string;
   description: string;
@@ -17,89 +17,42 @@ export type Product = {
   category: "beer" | "food";
 };
 
-export type CartItem = Product & { quantity: number };
+export type CartItem = Produto & { quantity: number };
 
-const products: Product[] = [
-  {
-    id: "1",
-    name: "Chopp Pilsen 500ml",
-    description: "Cerveja leve e refrescante, perfeita para qualquer momento",
-    price: 12.90,
-    image: "🍺",
-    category: "beer"
-  },
-  {
-    id: "2",
-    name: "IPA Artesanal 500ml",
-    description: "Amargor equilibrado com notas cítricas",
-    price: 18.50,
-    image: "🍻",
-    category: "beer"
-  },
-  {
-    id: "3",
-    name: "Chopp Escuro 500ml",
-    description: "Sabor intenso e marcante",
-    price: 14.90,
-    image: "🍺",
-    category: "beer"
-  },
-  {
-    id: "4",
-    name: "Porção de Batata Frita",
-    description: "Batatas crocantes com molhos especiais",
-    price: 22.00,
-    image: "🍟",
-    category: "food"
-  },
-  {
-    id: "5",
-    name: "Tábua de Frios",
-    description: "Seleção de queijos e embutidos",
-    price: 45.00,
-    image: "🧀",
-    category: "food"
-  },
-  {
-    id: "6",
-    name: "Porção de Asas",
-    description: "Asas de frango crocantes ao molho barbecue",
-    price: 32.00,
-    image: "🍗",
-    category: "food"
-  }
-];
+// Produtos carregados do backend
 
 const Index = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (produto: Produto) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
+      const existingItem = prevCart.find(item => item.id === produto.id);
       if (existingItem) {
         return prevCart.map(item =>
-          item.id === product.id
+          item.id === produto.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prevCart, { ...product, quantity: 1 }];
+      return [...prevCart, { ...produto, quantity: 1 }];
     });
     toast({
       title: "Adicionado ao carrinho!",
-      description: `${product.name} foi adicionado`,
+      description: `${produto.name} foi adicionado`,
     });
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (produtoId: string, quantity: number) => {
     if (quantity === 0) {
-      setCart(prevCart => prevCart.filter(item => item.id !== productId));
+      setCart(prevCart => prevCart.filter(item => item.id !== produtoId));
     } else {
       setCart(prevCart =>
         prevCart.map(item =>
-          item.id === productId ? { ...item, quantity } : item
+          item.id === produtoId ? { ...item, quantity } : item
         )
       );
     }
@@ -125,6 +78,42 @@ const Index = () => {
     setIsCartOpen(false);
     setIsCheckoutOpen(true);
   };
+
+  // Busca produtos do backend ao montar o componente
+  useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    const fetchProdutos = async () => {
+      setLoading(true);
+      try {
+      // Ajuste a URL conforme necessário (backend em PT: /produtos/)
+      const response = await fetch("http://127.0.0.1:8000/produtos/", { signal });
+        if (!response.ok) {
+          throw new Error(`Falha ao buscar produtos (status ${response.status})`);
+        }
+        const data: Produto[] = await response.json();
+        setProdutos(data);
+      } catch (error: unknown) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          // Fetch abortado — silencioso
+          return;
+        }
+        console.error("Erro ao carregar produtos:", error);
+        toast({
+          title: "Erro de Conexão",
+          description: "Não foi possível carregar os produtos do servidor.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProdutos();
+
+    return () => controller.abort();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -168,7 +157,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Products Section */}
+      {/* Produtos Section */}
       <section className="pb-20 px-4">
         <div className="container mx-auto">
           <div className="flex items-center gap-3 mb-8">
@@ -176,13 +165,17 @@ const Index = () => {
             <h3 className="text-2xl font-bold">Cervejas</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {products.filter(p => p.category === "beer").map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onAddToCart={addToCart}
-              />
-            ))}
+              {loading ? (
+                <div>Carregando produtos...</div>
+              ) : (
+                produtos.filter(p => p.category === "beer").map(produto => (
+                  <ProdutoCard 
+                    key={produto.id} 
+                    produto={produto} 
+                    onAddToCart={addToCart}
+                  />
+                ))
+              )}
           </div>
 
           <div className="flex items-center gap-3 mb-8">
@@ -190,13 +183,17 @@ const Index = () => {
             <h3 className="text-2xl font-bold">Petiscos</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.filter(p => p.category === "food").map(product => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                onAddToCart={addToCart}
-              />
-            ))}
+              {loading ? (
+                <div>Carregando produtos...</div>
+              ) : (
+                produtos.filter(p => p.category === "food").map(produto => (
+                  <ProdutoCard 
+                    key={produto.id} 
+                    produto={produto} 
+                    onAddToCart={addToCart}
+                  />
+                ))
+              )}
           </div>
         </div>
       </section>

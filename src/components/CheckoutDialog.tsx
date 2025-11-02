@@ -51,8 +51,6 @@ interface MercadoPagoPreference {
 // Com credenciais de teste, a URL será: https://sandbox.mercadopago.com.br
 // ⚠️ Credenciais abaixo são da conta PRINCIPAL e causarão erro CPT01-3BAP8IE0JHVR
 
-const MERCADO_PAGO_PUBLIC_KEY = "APP_USR-c1f99119-2376-47f9-b456-1fa509473fb6";
-const MERCADO_PAGO_ACCESS_TOKEN = "APP_USR-3542135147633802-102621-efdb375d6e6fab25f7ab0c586304c0d3-2939944844";
 
 const CheckoutDialog = ({
   isOpen,
@@ -110,7 +108,44 @@ const CheckoutDialog = ({
                          window.location.hostname === '127.0.0.1' ||
                          window.location.hostname === '[::1]';
 
-      // Preparar itens do pedido
+      // Preparar itens do pedido (para enviar ao backend)
+      const pedidoPayloadItems = cart.map(item => ({
+        produto_id: item.id,
+        quantity: item.quantity
+      }));
+
+      // Enviar pedido ao backend antes de criar a preferência no Mercado Pago
+      let pedidoResponseJson: { id?: number } | null = null;
+      try {
+        const pedidoRes = await fetch("http://127.0.0.1:8000/pedidos/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ items: pedidoPayloadItems })
+        });
+
+        if (!pedidoRes.ok) {
+          const err = await pedidoRes.text();
+          console.error("Erro ao criar pedido no backend:", pedidoRes.status, err);
+          throw new Error("Não foi possível criar o pedido no servidor.");
+        }
+
+        pedidoResponseJson = await pedidoRes.json();
+        console.log("Pedido criado no backend:", pedidoResponseJson);
+      } catch (err) {
+        console.error("Falha ao enviar pedido ao backend:", err);
+        toast({
+          title: "Erro ao criar pedido",
+          description: "Não foi possível salvar o pedido no servidor. Tente novamente.",
+          variant: "destructive"
+        });
+        setPaymentStatus("idle");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Preparar itens para a preferência do Mercado Pago (exibição)
       const items = cart.map(item => ({
         title: item.name,
         description: item.description,
@@ -119,8 +154,8 @@ const CheckoutDialog = ({
         currency_id: "BRL"
       }));
 
-      // Criar preferência de pagamento
-      const preferenceData: MercadoPagoPreference = {
+      // Criar preferência de pagamento e incluir external_reference com pedido_id retornado
+      const preferenceData: MercadoPagoPreference & { external_reference?: string } = {
         items: items,
         back_urls: {
           success: window.location.origin + "/?payment=success",
@@ -128,6 +163,10 @@ const CheckoutDialog = ({
           pending: window.location.origin + "/?payment=pending"
         }
       };
+
+      if (pedidoResponseJson && pedidoResponseJson.id !== undefined) {
+        preferenceData.external_reference = String(pedidoResponseJson.id);
+      }
 
       // Mercado Pago não aceita auto_return com URLs locais (localhost/127.0.0.1)
       // Apenas adicionar auto_return se NÃO for localhost
@@ -144,42 +183,40 @@ const CheckoutDialog = ({
         ? "https://api.mercadopago.com/checkout/preferences"
         : "https://api.mercadopago.com/checkout/preferences";
 
-      // Chamada à API do Mercado Pago
-      const response = await fetch(apiEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${MERCADO_PAGO_ACCESS_TOKEN}`
-        },
-        body: JSON.stringify(preferenceData)
-      });
+      // Em vez de chamar o Mercado Pago diretamente do frontend (expor token),
+      // chamamos o endpoint do backend que faz a requisição ao Mercado Pago usando credenciais seguras.
+      try {
+        const backendRes = await fetch("http://127.0.0.1:8000/mp/create_preference/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(preferenceData)
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("❌ Erro na API do Mercado Pago - Status:", response.status);
-        console.error("❌ Detalhes do erro:", JSON.stringify(errorData, null, 2));
-        console.error("📋 Payload enviado:", JSON.stringify(preferenceData, null, 2));
-        
-        // Verificar se o erro é relacionado à URL de retorno
-        if (errorData.message && errorData.message.includes("back_urls")) {
-          throw new Error("Mercado Pago não aceita URLs locais (localhost/127.0.0.1). Use o ambiente de produção (Lovable) para testar o retorno automático.");
+        if (!backendRes.ok) {
+          const text = await backendRes.text();
+          console.error("Erro do backend ao criar preferência:", backendRes.status, text);
+          throw new Error("Não foi possível criar preferência de pagamento no servidor.");
         }
-        
-        throw new Error(`Erro ao criar preferência: ${errorData.message || JSON.stringify(errorData)}`);
+
+        const preference = await backendRes.json();
+        const checkoutUrl = environmentMode === "sandbox"
+          ? (preference.sandbox_init_point || preference.init_point)
+          : preference.init_point;
+
+        console.log("🔗 URL do checkout (via backend):", checkoutUrl);
+        // Redireciona para o Mercado Pago
+        window.location.href = checkoutUrl;
+      } catch (err) {
+        console.error("Erro ao criar preferência via backend:", err);
+        toast({
+          title: "Erro no checkout",
+          description: "Não foi possível iniciar o checkout. Tente novamente mais tarde.",
+          variant: "destructive"
+        });
+        setPaymentStatus("idle");
+        setIsProcessing(false);
+        return;
       }
-
-      const preference = await response.json();
-      
-      // Usar a URL correta baseada na escolha do usuário
-      const checkoutUrl = environmentMode === "sandbox" 
-        ? (preference.sandbox_init_point || preference.init_point)
-        : preference.init_point;
-      
-      console.log("🔗 URL do checkout:", checkoutUrl);
-      console.log(environmentMode === "sandbox" ? "✅ Usando ambiente de TESTE (Sandbox)" : "⚠️ Usando ambiente de PRODUÇÃO");
-
-      // Redirecionar para checkout do Mercado Pago (mesma aba)
-      window.location.href = checkoutUrl;
       
       toast({
         title: "🔄 Redirecionando para checkout",
@@ -222,7 +259,7 @@ const CheckoutDialog = ({
                 </span>
               </div>
             ))}
-            <div className="pt-3 border-t border-border flex justify-between items-center">
+            <div className="pt-3 bpedido-t bpedido-bpedido flex justify-between items-center">
               <span className="font-bold">Total:</span>
               <span className="text-2xl font-bold text-primary">
                 R$ {totalPrice.toFixed(2)}
@@ -263,14 +300,14 @@ const CheckoutDialog = ({
                 >
                   <div className="flex items-center space-x-2 flex-1">
                     <RadioGroupItem value="sandbox" id="sandbox" />
-                    <Label htmlFor="sandbox" className="cursor-pointer flex-1 p-3 border rounded-lg hover:bg-accent">
+                    <Label htmlFor="sandbox" className="cursor-pointer flex-1 p-3 bpedido rounded-lg hover:bg-accent">
                       <div className="font-semibold text-sm">🧪 Sandbox (Teste)</div>
                       <div className="text-xs text-muted-foreground">Para testes e desenvolvimento</div>
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 flex-1">
                     <RadioGroupItem value="production" id="production" />
-                    <Label htmlFor="production" className="cursor-pointer flex-1 p-3 border rounded-lg hover:bg-accent">
+                    <Label htmlFor="production" className="cursor-pointer flex-1 p-3 bpedido rounded-lg hover:bg-accent">
                       <div className="font-semibold text-sm">🚀 Produção</div>
                       <div className="text-xs text-muted-foreground">Pagamentos reais</div>
                     </Label>
@@ -310,7 +347,7 @@ const CheckoutDialog = ({
 
               {/* Informações sobre cartões de teste - só mostrar em modo Sandbox */}
               {environmentMode === "sandbox" && (
-                <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+                <div className="bg-blue-50 dark:bg-blue-950 bpedido bpedido-blue-200 dark:bpedido-blue-800 rounded-lg p-4 space-y-2">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                     <div className="text-xs text-blue-900 dark:text-blue-100">
@@ -329,7 +366,7 @@ const CheckoutDialog = ({
 
               {/* Alerta sobre ambiente de produção */}
               {environmentMode === "production" && (
-                <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="bg-yellow-50 dark:bg-yellow-950 bpedido bpedido-yellow-200 dark:bpedido-yellow-800 rounded-lg p-4">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
                     <div className="text-xs text-yellow-900 dark:text-yellow-100">
