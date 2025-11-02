@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from typing import List
 
-from . import models, schemas, crud
+from backend import models, schemas, crud
 from .database import engine, get_db
 
 # Cria as tabelas no DB se elas não existirem (incluindo Pedido e PedidoItem)
