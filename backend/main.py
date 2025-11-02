@@ -6,10 +6,14 @@ import requests
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
+# typing
 from typing import List
 
-from backend import models, schemas, crud
-from backend.database import engine, get_db
+# Imports relativos dentro do pacote `backend` — funciona quando o
+# Root Directory do Render está definido como `backend` e o Start
+# Command é `uvicorn main:app`.
+from . import models, schemas, crud
+from .database import engine, get_db
 # Importa os modelos para garantir que eles sejam registrados com o SQLAlchemy
 
 # Cria as tabelas no DB se elas não existirem (incluindo Pedido e PedidoItem)
@@ -111,7 +115,7 @@ def read_produto(produto_id: str, db: Session = Depends(get_db)):
 # --- Rota de Exemplo para Popular o Banco de Dados (Opcional) ---
 
 # Use esta rota para popular o DB com os dados do seu frontend
-from backend.data import initial_produtos # Importaremos de um novo arquivo 'data.py'
+from .data import initial_produtos # Importaremos de um novo arquivo 'data.py'
 
 @app.post("/initialize_produtos/", tags=["Dev Tools"])
 def initialize_produtos(db: Session = Depends(get_db)):
