@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from backend import models, schemas, crud
-from .database import engine, get_db
+from backend.database import engine, get_db
 
 # Cria as tabelas no DB se elas não existirem (incluindo Pedido e PedidoItem)
 models.Base.metadata.create_all(bind=engine)
@@ -110,7 +110,7 @@ def read_produto(produto_id: str, db: Session = Depends(get_db)):
 # --- Rota de Exemplo para Popular o Banco de Dados (Opcional) ---
 
 # Use esta rota para popular o DB com os dados do seu frontend
-from .data import initial_produtos # Importaremos de um novo arquivo 'data.py'
+from backend.data import initial_produtos # Importaremos de um novo arquivo 'data.py'
 
 @app.post("/initialize_produtos/", tags=["Dev Tools"])
 def initialize_produtos(db: Session = Depends(get_db)):
