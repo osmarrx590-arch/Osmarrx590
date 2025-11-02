@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 import os
 import requests
@@ -22,9 +23,16 @@ app = FastAPI(title="Choperia Digital API")
 
 # Habilita CORS para o frontend em desenvolvimento (Vite padrão em localhost:8080)
 # Ajuste `allow_origins` conforme o host/porta do seu frontend em dev.
+# Configurações de CORS — aceita localhost em dev e uma URL de frontend
+# definida via variável de ambiente FRONTEND_URL (útil em produção Render).
+_frontend_url = os.getenv("FRONTEND_URL")
+_allow_origins = ["http://localhost:8080", "http://127.0.0.1:8080"]
+if _frontend_url:
+    _allow_origins.append(_frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_origins=_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -167,6 +175,12 @@ def read_pedido(pedido_id: int, db: Session = Depends(get_db)):
     if db_pedido is None:
         raise HTTPException(status_code=404, detail="Pedido not found")
     return db_pedido
+
+
+# Rota raiz minimal: redireciona para a documentação para evitar 404 na raiz
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 
 from fastapi import Response
 
